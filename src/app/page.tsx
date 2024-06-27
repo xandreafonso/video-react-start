@@ -1,112 +1,190 @@
-import Image from "next/image";
+"use client";
+
+import {
+  MouseEvent,
+  MouseEventHandler,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
+
+const videoSources: any = {
+  low:    'https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/240/Big_Buck_Bunny_240_10s_1MB.mp4',
+  medium: 'https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4',
+  high:   'https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/720/Big_Buck_Bunny_720_10s_1MB.mp4'
+};
 
 export default function Home() {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const [quality, setQuality] = useState("medium");
+  const [isSeeking, setIsSeeking] = useState(false);
+
+  const togglePlayPause = () => {
+    if (!videoRef.current) return;
+
+    if (videoRef.current.paused) {
+      videoRef.current.play();
+      setIsPlaying(true);
+    } else {
+      videoRef.current.pause();
+      setIsPlaying(false);
+    }
+  };
+
+  const stopVideo = () => {
+    if (!videoRef.current) return;
+
+    videoRef.current.pause();
+    videoRef.current.currentTime = 0;
+    setIsPlaying(false);
+  };
+
+  const handleSpeedChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    if (!videoRef.current) return;
+
+    videoRef.current.playbackRate = parseFloat(event.target.value);
+    setPlaybackRate(videoRef.current.playbackRate);
+  };
+
+  const handleQualityChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    if (!videoRef.current) return;
+
+    const newQuality = event.target.value;
+    setQuality(newQuality);
+
+    const currentTime = videoRef.current.currentTime;
+    const isPlaying = !videoRef.current.paused;
+    const speed = videoRef.current.playbackRate;
+
+    videoRef.current.src = videoSources[newQuality];
+    videoRef.current.currentTime = currentTime;
+    videoRef.current.playbackRate = speed;
+
+    setQuality(newQuality);
+    if (isPlaying) videoRef.current.play();
+  };
+
+  const handleProgress = () => {
+    if (!videoRef.current) return;
+
+    const progress =
+      (videoRef.current.currentTime / videoRef.current.duration) * 100;
+
+    setProgress(progress);
+  };
+
+  const handleProgressBarChange = (
+    event:
+      | React.MouseEvent<HTMLInputElement>
+      | React.ChangeEvent<HTMLInputElement>
+      | React.TouchEvent<HTMLInputElement>
+  ) => {
+    if (!videoRef.current) return;
+
+    const newTime =
+      (parseFloat((event.target as HTMLInputElement).value) / 100) *
+      videoRef.current.duration;
+    videoRef.current.currentTime = newTime;
+    setProgress(parseFloat((event.target as HTMLInputElement).value));
+  };
+
+  const handleSeekStart = () => {
+    setIsSeeking(true);
+  };
+
+  const handleSeekEnd = (
+    event:
+      | React.MouseEvent<HTMLInputElement>
+      | React.TouchEvent<HTMLInputElement>
+  ) => {
+    setIsSeeking(false);
+    handleProgressBarChange(event);
+  };
+
+  const handleSeekMove = (
+    event:
+      | React.MouseEvent<HTMLInputElement>
+      | React.TouchEvent<HTMLInputElement>
+  ) => {
+    if (isSeeking) {
+      handleProgressBarChange(event);
+    }
+  };
+
+  useEffect(() => {
+    if (!videoRef.current) return;
+
+    const video = videoRef.current;
+
+    video.addEventListener("timeupdate", handleProgress);
+
+    return () => {
+      video.removeEventListener("timeupdate", handleProgress);
+    };
+  }, []);
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">src/app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:size-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
+    <main className="h-full flex items-center justify-center">
+      <div className="flex flex-col gap-4 items-center w-3/5">
+        <video
+          ref={videoRef}
+          onClick={togglePlayPause}
+          className="aspect-video w-full"
+        >
+          <source src={videoSources[quality]} type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
 
-      <div className="relative z-[-1] flex place-items-center before:absolute before:h-[300px] before:w-full before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 sm:before:w-[480px] sm:after:w-[240px] before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value={progress}
+          onChange={handleProgressBarChange}
+          onMouseDown={handleSeekStart}
+          onMouseUp={handleSeekEnd}
+          onMouseMove={handleSeekMove}
+          onTouchStart={handleSeekStart}
+          onTouchEnd={handleSeekEnd}
+          onTouchMove={handleSeekMove}
+          className="range range-primary w-3/5"
         />
-      </div>
 
-      <div className="mb-32 grid text-center lg:mb-0 lg:w-full lg:max-w-5xl lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
+        <div className="flex gap-4 items-center justify-center">
+          <button onClick={togglePlayPause} className="btn">
+            {isPlaying ? "Pause" : "Play"}
+          </button>
 
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
+          <button onClick={stopVideo} className="btn">
+            Stop
+          </button>
 
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Explore starter templates for Next.js.
-          </p>
-        </a>
+          <select
+            value={playbackRate}
+            onChange={handleSpeedChange}
+            className="select select-bordered"
+          >
+            <option value="0.5">0.5x</option>
+            <option value="1">1x</option>
+            <option value="1.5">1.5x</option>
+            <option value="2">2x</option>
+          </select>
 
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-balance text-sm opacity-50">
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
+          <select
+            id="quality"
+            value={quality}
+            onChange={handleQualityChange}
+            className="select select-bordered"
+          >
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+        </div>
       </div>
     </main>
   );
